@@ -10,6 +10,7 @@ def max(i, val, sol, nb_it):
     else:
         return False
 
+
 # Stopping criterions that are actually just checkpoints.
 
 def several(i, val, sol, agains):

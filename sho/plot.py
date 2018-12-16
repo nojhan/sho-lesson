@@ -18,7 +18,7 @@ def surface(ax, shape, f):
     Z = np.zeros( shape )
     for y in range(shape[0]):
         for x in range(shape[1]):
-            Z[y][x] = f( (x,y), shape[0]/2 )
+            Z[y][x] = f( (x,y) )
 
     X = np.arange(0,shape[0],1)
     Y = np.arange(0,shape[1],1)
@@ -61,38 +61,3 @@ def highlight_sensors(domain, sensors, val=2):
         domain[y(s)][x(s)] = val
     return domain
 
-
-if __name__=="__main__":
-    import snp
-
-    w = 100
-    shape = (w,w)
-    history = []
-
-    val,sol = snp.greedy(
-            snp.make_func(sphere,
-                offset = w/2),
-            snp.make_init(snp.num_rand,
-                dim = 2 * 1,
-                scale = w),
-            snp.make_neig(snp.num_neighb_square,
-                scale = w/10),
-            snp.make_iter(
-                    snp.several,
-                    agains = [
-                        snp.make_iter(snp.iter_max,
-                            nb_it = 100),
-                        snp.make_iter(snp.history,
-                            history = history)
-                    ]
-                )
-        )
-    sensors = snp.num_to_sensors(sol)
-
-    #print("\n".join([str(i) for i in history]))
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    surface(ax, shape, sphere)
-    path(ax, shape, history)
-    plt.show()

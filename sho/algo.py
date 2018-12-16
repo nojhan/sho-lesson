@@ -12,7 +12,7 @@ def random(func, init, again):
     while again(i, val, sol):
         sol = init()
         val = func(sol)
-        if val > best_val:
+        if val >= best_val:
             best_val = val
             best_sol = sol
         i += 1
@@ -28,7 +28,8 @@ def greedy(func, init, neighb, again):
     while again(i, best_val, best_sol):
         sol = neighb(best_sol)
         val = func(sol)
-        if val > best_val:
+        # Use >= and not >, so as to fallback to random walk on plateus.
+        if val >= best_val:
             best_val = val
             best_sol = sol
         i += 1

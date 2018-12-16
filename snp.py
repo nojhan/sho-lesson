@@ -1,7 +1,5 @@
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import copy
 
 from sho import *
 
@@ -23,7 +21,7 @@ if __name__=="__main__":
     can.add_argument("-r", "--sensor-range", metavar="RATIO", default=0.3, type=float,
             help="Sensors' range (as a fraction of domain width)")
 
-    can.add_argument("-w", "--domain-width", metavar="NB", default=100, type=int,
+    can.add_argument("-w", "--domain-width", metavar="NB", default=30, type=int,
             help="Domain width (a number of cells)")
 
     can.add_argument("-i", "--iters", metavar="NB", default=100, type=int,
@@ -55,9 +53,9 @@ if __name__=="__main__":
     # Weird numpy way to ensure single line print of array.
     np.set_printoptions(linewidth = np.inf)
 
-    domain = np.zeros((the.domain_width, the.domain_width))
 
     # Common termination and checkpointing.
+    history = []
     iters = make.iter(
                 iters.several,
                 agains = [
@@ -67,7 +65,9 @@ if __name__=="__main__":
                         filename = the.solver+".csv",
                         fmt = "{it} ; {val} ; {sol}\n"),
                     make.iter(iters.log,
-                        fmt="\r{it} {val}")
+                        fmt="\r{it} {val}"),
+                    make.iter(iters.history,
+                        history = history)
                 ]
             )
 
@@ -106,11 +106,28 @@ if __name__=="__main__":
 
 
     # Fancy output.
-    print("\n",val,":",sensors)
+    print("\n{} : {}".format(val,sensors))
 
+    shape=(the.domain_width, the.domain_width)
+
+    fig = plt.figure()
+
+    if the.nb_sensors ==1 and the.domain_width <= 50:
+        ax1 = fig.add_subplot(121, projection='3d')
+        ax2 = fig.add_subplot(122)
+
+        f = make.func(num.cover_sum,
+                        domain_width = the.domain_width,
+                        sensor_range = the.sensor_range * the.domain_width)
+        plot.surface(ax1, shape, f)
+        plot.path(ax1, shape, history)
+    else:
+        ax2=fig.add_subplot(111)
+
+    domain = np.zeros(shape)
     domain = pb.coverage(domain, sensors,
             the.sensor_range * the.domain_width)
     domain = plot.highlight_sensors(domain, sensors)
-    plt.imshow(domain)
-    plt.show()
+    ax2.imshow(domain)
 
+    plt.show()
