@@ -34,9 +34,14 @@ if __name__=="__main__":
     can.add_argument("-m", "--solver", metavar="NAME", choices=solvers, default="num_greedy",
             help="Solver to use, among: "+", ".join(solvers))
 
-    # TODO add the corresponding stopping criterion.
-    can.add_argument("-t", "--target", metavar="VAL", default=1e-3, type=float,
-            help="Function value target delta")
+    can.add_argument("-t", "--target", metavar="VAL", default=30*30, type=float,
+            help="Objective function value target")
+
+    can.add_argument("-y", "--steady-delta", metavar="NB", default=50, type=float,
+            help="Stop if no improvement after NB iterations")
+    can.add_argument("-e", "--steady-epsilon", metavar="DVAL", default=0, type=float,
+            help="Stop if the improvement of the objective function value is lesser than DVAL")
+
 
     the = can.parse_args()
 
@@ -67,7 +72,10 @@ if __name__=="__main__":
                     make.iter(iters.log,
                         fmt="\r{it} {val}"),
                     make.iter(iters.history,
-                        history = history)
+                        history = history),
+                    make.iter(iters.target,
+                        target = the.target),
+                    iters.steady(the.steady_delta, the.steady_epsilon)
                 ]
             )
 
