@@ -1,7 +1,8 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sho import *
+from sho import algo, bit, func, iters, make, num, pb, plot
 
 ########################################################################
 # Interface
@@ -30,18 +31,23 @@ if __name__=="__main__":
     can.add_argument("-s", "--seed", metavar="VAL", default=None, type=int,
             help="Random pseudo-generator seed (none for current epoch)")
 
-    solvers = ["num_greedy","bit_greedy"]
+    solvers = ["num_greedy","bit_greedy","num_rand","bit_rand"]
     can.add_argument("-m", "--solver", metavar="NAME", choices=solvers, default="num_greedy",
             help="Solver to use, among: "+", ".join(solvers))
 
-    can.add_argument("-t", "--target", metavar="VAL", default=30*30, type=float,
-            help="Objective function value target")
+    # can.add_argument("-t", "--target", metavar="VAL", default=30*30, type=float,
+    #         help="Objective function value target")
+    #
+    # can.add_argument("-y", "--steady-delta", metavar="NB", default=50, type=float,
+    #         help="Stop if no improvement after NB iterations")
+    # can.add_argument("-e", "--steady-epsilon", metavar="DVAL", default=0, type=float,
+    #         help="Stop if the improvement of the objective function value is lesser than DVAL")
 
-    can.add_argument("-y", "--steady-delta", metavar="NB", default=50, type=float,
-            help="Stop if no improvement after NB iterations")
-    can.add_argument("-e", "--steady-epsilon", metavar="DVAL", default=0, type=float,
-            help="Stop if the improvement of the objective function value is lesser than DVAL")
+    can.add_argument("-p", "--no-plot", action='store_true',
+            help="Do not display plots.")
 
+    can.add_argument("-d", "--dir", metavar="DIR", default="", type=str,
+            help="Directory to which output written files.")
 
     the = can.parse_args()
 
@@ -66,29 +72,34 @@ if __name__=="__main__":
                 agains = [
                     make.iter(iters.max,
                         nb_it = the.iters),
-                    make.iter(iters.save,
-                        filename = the.solver+".csv",
-                        fmt = "{it} ; {val} ; {sol}\n"),
+                    # make.iter(iters.save,
+                    #     filename = os.path.join(the.dir,the.solver+".csv"),
+                    #     fmt = "{it} ; {val} ; {sol}\n"),
                     make.iter(iters.log,
                         fmt="\r{it} {val}"),
                     make.iter(iters.history,
                         history = history),
-                    make.iter(iters.target,
-                        target = the.target),
-                    iters.steady(the.steady_delta, the.steady_epsilon)
+                    # make.iter(iters.target,
+                    #     target = the.target),
+                    # iters.steady(the.steady_delta, the.steady_epsilon)
                 ]
             )
 
     # Erase the previous file.
-    with open(the.solver+".csv", 'w') as fd:
-        fd.write("# {} {}\n".format(the.solver,the.domain_width))
+    # with open(the.solver+".csv", 'w') as fd:
+    #     fd.write("# {} {}\n".format(the.solver,the.domain_width))
 
     val,sol,sensors = None,None,None
     if the.solver == "num_greedy":
-        val,sol = algo.greedy(
+        fdump = func.Dump(
                 make.func(num.cover_sum,
                     domain_width = the.domain_width,
                     sensor_range = the.sensor_range * the.domain_width),
+                filename = os.path.join(the.dir,"{s}_run_{i}.csv".format(s=the.solver, i=the.seed)),
+                fmt = "{it} ; {val} ; {sol}\n"
+            )
+        val,sol = algo.greedy(
+                fdump,
                 make.init(num.rand,
                     dim = d * the.nb_sensors,
                     scale = the.domain_width),
@@ -98,11 +109,34 @@ if __name__=="__main__":
             )
         sensors = num.to_sensors(sol)
 
+    if the.solver == "num_rand":
+        fdump = func.Dump(
+                make.func(num.cover_sum,
+                    domain_width = the.domain_width,
+                    sensor_range = the.sensor_range * the.domain_width),
+                filename = os.path.join(the.dir,"{s}_run_{i}.csv".format(s=the.solver, i=the.seed)),
+                fmt = "{it} ; {val} ; {sol}\n"
+            )
+        val,sol = algo.random(
+                fdump,
+                make.init(num.rand,
+                    dim = d * the.nb_sensors,
+                    scale = the.domain_width),
+                iters
+            )
+        sensors = num.to_sensors(sol)
+
+
     elif the.solver == "bit_greedy":
-        val,sol = algo.greedy(
+        fdump = func.Dump(
                 make.func(bit.cover_sum,
                     domain_width = the.domain_width,
                     sensor_range = the.sensor_range),
+                filename = os.path.join(the.dir,"{s}_run_{i}.csv".format(s=the.solver, i=the.seed)),
+                fmt = "{it} ; {val} ; {sol}\n"
+            )
+        val,sol = algo.greedy(
+                fdump,
                 make.init(bit.rand,
                     domain_width = the.domain_width,
                     nb_sensors = the.nb_sensors),
@@ -112,30 +146,49 @@ if __name__=="__main__":
             )
         sensors = bit.to_sensors(sol)
 
+    elif the.solver == "bit_rand":
+        fdump = func.Dump(
+                make.func(bit.cover_sum,
+                    domain_width = the.domain_width,
+                    sensor_range = the.sensor_range),
+                filename = os.path.join(the.dir,"{s}_run_{i}.csv".format(s=the.solver, i=the.seed)),
+                fmt = "{it} ; {val} ; {sol}\n"
+            )
+        val,sol = algo.random(
+                fdump,
+                make.init(bit.rand,
+                    domain_width = the.domain_width,
+                    nb_sensors = the.nb_sensors),
+                iters
+            )
+        sensors = bit.to_sensors(sol)
+
+
 
     # Fancy output.
     print("\n{} : {}".format(val,sensors))
 
-    shape=(the.domain_width, the.domain_width)
+    if not the.no_plot:
+        shape=(the.domain_width, the.domain_width)
 
-    fig = plt.figure()
+        fig = plt.figure()
 
-    if the.nb_sensors ==1 and the.domain_width <= 50:
-        ax1 = fig.add_subplot(121, projection='3d')
-        ax2 = fig.add_subplot(122)
+        if the.nb_sensors ==1 and the.domain_width <= 50:
+            ax1 = fig.add_subplot(121, projection='3d')
+            ax2 = fig.add_subplot(122)
 
-        f = make.func(num.cover_sum,
-                        domain_width = the.domain_width,
-                        sensor_range = the.sensor_range * the.domain_width)
-        plot.surface(ax1, shape, f)
-        plot.path(ax1, shape, history)
-    else:
-        ax2=fig.add_subplot(111)
+            f = make.func(num.cover_sum,
+                            domain_width = the.domain_width,
+                            sensor_range = the.sensor_range * the.domain_width)
+            plot.surface(ax1, shape, f)
+            plot.path(ax1, shape, history)
+        else:
+            ax2=fig.add_subplot(111)
 
-    domain = np.zeros(shape)
-    domain = pb.coverage(domain, sensors,
-            the.sensor_range * the.domain_width)
-    domain = plot.highlight_sensors(domain, sensors)
-    ax2.imshow(domain)
+        domain = np.zeros(shape)
+        domain = pb.coverage(domain, sensors,
+                the.sensor_range * the.domain_width)
+        domain = plot.highlight_sensors(domain, sensors)
+        ax2.imshow(domain)
 
-    plt.show()
+        plt.show()
