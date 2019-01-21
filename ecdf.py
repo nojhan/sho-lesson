@@ -103,20 +103,41 @@ if __name__ == "__main__":
 
     the = can.parse_args()
 
-    print(the.name_strip)
-
     erts = {}
     names = []
     i = 0
+    data_max = -1*float("inf")
+
+    if not the.evals:
+        nb_rows = guess_number_evals(the.runs[0])
+    data = np.zeros( (nb_rows+1, len(the.runs[0])) )
+
+    if the.optimum:
+        data_max = the.optimum
+    else:
+        sys.stderr.write("Compute max:\n")
+        i = 0
+        for runs in the.runs:
+            for delta in the.delta:
+                i += 1
+                sys.stderr.write( "\r{}/{}".format(i,len(the.runs)*len(the.delta)) )
+                data = along_runtime(runs,data)
+                data_max = max(data_max, data.max())
+
+    sys.stderr.write("\nCompute ECDFs:\n")
+    i = 0
     for runs in the.runs:
         for delta in the.delta:
+            i += 1
+            sys.stderr.write( "\r{}/{}".format(i,len(the.runs)*len(the.delta)) )
             ert = parse(
                     runs, delta,
-                    nb_rows = the.evals, optim = the.optimum, do_min = the.min
+                    nb_rows = the.evals, optim = data_max, do_min = the.min
                 )
 
             name = make_name(runs, delta, erts, the.name_strip, the.min)
             erts[name] = ert
+    sys.stderr.write("\nPlot\n")
 
     fig = plt.figure()
     for name in erts:
@@ -129,9 +150,9 @@ if __name__ == "__main__":
     else:
         comp=">"
     # plt.ylabel(r"$P\left(f\left(\hat{x})\right)/"+str(the.optimum)+comp+r"\Delta\right)$")
-    plt.ylabel(r"$P\left(1/"+str(the.optimum)+r"\cdot f\left(\hat{x})\right)"+comp+r"\Delta\right)$")
+    plt.ylabel(r"$P\left(f\left(\hat{x}\right)/"+str(data_max)+comp+r"\Delta\right)$")
     plt.xlabel("Time (#function evals)")
-    plt.title("Expected RunTime Empirical Cumulative Density Function")
+    plt.title("Expected RunTime Empirical Cumulative Density Function ({} runs)".format(str(len(the.runs[0]))))
     plt.legend()
     plt.show()
 
